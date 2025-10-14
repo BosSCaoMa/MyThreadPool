@@ -20,7 +20,21 @@ public:
     MyThreadPool(int size = 4);
     ~MyThreadPool();
 
-    void addTask(std::function<void()> f);
+    template<typename F, typename... Args>
+    auto addTask(F&& f, Args&&... args) -> future<typename result_of<F(Args...)>::type>
+    {
+        using returnType = typename result_of<F(Args...)>::type;
+        auto task = make_shared<packaged_task<returnType()>>(
+            bind(forward<F>(f), forward<Args>(args)...)
+        );
+        future<returnType> res = task->get_future();
+        {
+            unique_lock<mutex> lock(m_queueMutex);
+            m_tasks.emplace([task]() { (*task)(); });
+        }
+        m_condition.notify_one();
+        return res;
+    }
 private:
     void manager();
     void worker();
