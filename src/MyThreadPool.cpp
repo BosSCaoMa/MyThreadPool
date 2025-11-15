@@ -14,14 +14,6 @@ MyThreadPool::MyThreadPool(int size) {
     }
 }
 
-void MyThreadPool::addTask(std::function<void()> f) {
-    {
-        unique_lock<mutex> locker(m_queueMutex);
-        m_tasks.push(f);
-    }
-    m_condition.notify_one();
-}
-
 void MyThreadPool::worker() {
     while (!m_stop.load()) {
         function<void()> task;
